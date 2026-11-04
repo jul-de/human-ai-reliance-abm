@@ -21,7 +21,7 @@ Each agent updates its trust in the AI after every outcome with a delta rule, T<
 
 The separation is **inspired by Signal Detection Theory**'s split between sensitivity and decision criterion. It is an analogy, not a formal implementation: α and θ are a learning rate and a behavioural threshold, not estimates of d′ or c.
 
-The key theoretical move: **the social-framing hypothesis is modelled as a higher switching threshold, not a lower learning rate.** Agents in the elevated-threshold condition register errors just as quickly, but need more accumulated trust loss before they change behaviour. This is anchored in Peters & Scharlau (2025), who found that detection and action dissociate: people can register that an AI has degraded without changing how they use it. The model does not simulate an anthropomorphic interface directly. The elevated threshold stands in for a proposed mechanism through which social framing could affect reliance.
+The key theoretical move: **the social-framing hypothesis is modelled as a higher switching threshold, not a lower learning rate.** Agents in the elevated-threshold condition register errors just as quickly, but need more accumulated trust loss before they change behaviour. This is anchored in [Peters & Scharlau (2025)](https://doi.org/10.3389/fpsyg.2025.1574809), who found that detection and action dissociate: people can register that an AI has degraded without changing how they use it. The model does not simulate an anthropomorphic interface directly. The elevated threshold stands in for a proposed mechanism through which social framing could affect reliance.
 
 ## Outcome measures
 
@@ -37,7 +37,7 @@ Within each trial an agent relies on the AI, sees the outcome, updates trust and
 
 - **v1, baseline:** a delta-rule update with a fixed threshold reproduces the expected rise-then-fall pattern. 7 of 50 agents false-alarm before the drift; all 43 remaining agents switch, a mean of 8.7 trials after it. This confirms the mechanism, and that the threshold trades off false alarms against slow detection of real degradation.
 - **v2, the core prediction:** with α held identical, raising θ from 0.25 to 0.40 increases the mean switching delay from 8.7 to 19.3 trials and mean exposure from 9.7 to 21.5 trials (about 2.2×). It also removes false alarms (4/25 → 0/25). The difference is driven entirely by the threshold.
-- **v3, robustness and emergence:** drawing α and θ from distributions and pooling 10 runs shows the effect is robust (delay 10.2 vs 16.9 trials; exposure 11.4 vs 20.6). **The most interesting result is emergent and unprogrammed:** 8.4% of at-risk elevated-threshold agents *never switch* within the window, vs 0.5% of neutral agents. This arises from the interaction of heterogeneous thresholds with a stochastic AI output stream. It can't be read off the parameters analytically, which is what justifies an agent-based approach. The trade-off shows up at population level too: 12.8% of neutral agents false-alarm, vs 0.4% of elevated-threshold agents.
+- **v3, robustness and emergence:** drawing α and θ from distributions and pooling 10 runs shows the effect is robust (delay 10.2 vs 16.9 trials; exposure 11.4 vs 20.6). **The most interesting result is emergent and unprogrammed:** 8.4% of at-risk elevated-threshold agents *never switch* within the window, vs 0.5% of neutral agents. No rule makes agents stay with the AI. The randomness of the AI's outputs alone produces some never-switchers: in v2, with identical agents, one of 25 elevated-threshold agents already never switches. Variation between agents then roughly doubles the effect: in larger samples from the [simulator](https://jul-de.github.io/human-ai-reliance-abm/) (5,000 agents per condition), 5.3% of identical agents never switch, against 11.6% of varied ones. How large this group is depends on the whole distribution of thresholds and outcome sequences, which isn't obvious from the parameter values; simulating it is what an agent-based approach is for. The trade-off shows up at population level too: 12.8% of neutral agents false-alarm, vs 0.4% of elevated-threshold agents.
 - **v4, drift trajectory:** replacing abrupt degradation with gradual drift (closer to how real AI degrades) *amplifies* the problem. The never-switch rate in the elevated-threshold condition rises from 7.7% to 19.2%, and mean exposure from 21.7 to 33.2 trials. Recalibration failure is worse, not better, when degradation is slow and silent.
 
 ## How to read the validation honestly
@@ -78,6 +78,13 @@ To run the simulator locally, serve `docs/` (e.g. `python -m http.server -d docs
 - `validation/`: the Python reference model, the simulator-vs-Python checks and the results-table script.
 
 The version originally submitted for the module is tagged [`v1-submitted`](https://github.com/jul-de/human-ai-reliance-abm/tree/v1-submitted). The current version separates pre-drift false alarms from post-drift recalibration, reports switching delay and exposure for all at-risk agents, and reframes α/θ and the anthropomorphism condition more precisely.
+
+## References
+
+Cited in this README and in the notebook.
+
+- Peters, T. M., & Scharlau, I. (2025). Interacting with fallible AI: Is distrust helpful when receiving AI misclassifications? *Frontiers in Psychology, 16*, 1574809. https://doi.org/10.3389/fpsyg.2025.1574809
+- Waytz, A., Heafner, J., & Epley, N. (2014). The mind in the machine: Anthropomorphism increases trust in an autonomous vehicle. *Journal of Experimental Social Psychology, 52*, 113–117. https://doi.org/10.1016/j.jesp.2014.01.005
 
 ## A note on AI assistance
 

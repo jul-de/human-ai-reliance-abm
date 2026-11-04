@@ -161,6 +161,10 @@ td.diff { color: var(--text-2); }
 .prose > * { max-width: 760px; }
 .prose h2 { margin-top: 0; }
 .prose p, .prose li { color: var(--text-2); }
+.prose h3 { font-size: 15px; margin: 20px 0 4px; }
+.prose ul { padding-left: 20px; }
+.prose li { margin-bottom: 6px; }
+.prose table th, .prose table td { color: var(--text); }
 .prose code { font-size: 13px; background: var(--bg); padding: 1px 5px; border-radius: 4px; }
 .eq { font-family: ui-serif, Georgia, serif; font-size: 16px; color: var(--text); }
 .callout { border-left: 3px solid var(--elevated); padding: 2px 0 2px 12px; margin: 12px 0; }
@@ -252,18 +256,55 @@ td.diff { color: var(--text-2); }
         <div class="chart" id="survival"></div>
       </section>
 
+      <section class="card prose" aria-labelledby="h-res">
+        <h2 id="h-res">Results</h2>
+        <p>Fixed results for each preset, with 5,000 simulated users per condition (seed 42, 200 runs of 25). Run <code>node validation/results.mjs</code> to reproduce them. The sliders above give smaller samples, so their numbers move around these values.</p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th scope="col" rowspan="2">Scenario</th><th scope="col" colspan="2">False alarms (%)</th><th scope="col" colspan="2">Never switch (%)</th><th scope="col" colspan="2">Mean exposure (trials)</th></tr>
+              <tr><th scope="col">Neutral</th><th scope="col">Elevated</th><th scope="col">Neutral</th><th scope="col">Elevated</th><th scope="col">Neutral</th><th scope="col">Elevated</th></tr>
+            </thead>
+            <tbody>
+            <tr><th scope="row" style="font-weight:500">v2 · Identical users</th><td>9.5</td><td>0.3</td><td>0.0</td><td>5.3</td><td>9.3</td><td>20.9</td></tr>
+            <tr><th scope="row" style="font-weight:500">v3 · Varied users</th><td>14.0</td><td>0.9</td><td>0.5</td><td>11.6</td><td>10.8</td><td>22.7</td></tr>
+            <tr><th scope="row" style="font-weight:500">v4 · Gradual drift</th><td>14.0</td><td>0.9</td><td>1.7</td><td>19.1</td><td>21.4</td><td>32.8</td></tr>
+            <tr><th scope="row" style="font-weight:500">Extension · Half the feedback hidden</th><td>8.1</td><td>0.4</td><td>6.8</td><td>34.5</td><td>20.0</td><td>34.4</td></tr>
+            <tr><th scope="row" style="font-weight:500">Extension · Half hidden + gradual drift</th><td>8.1</td><td>0.4</td><td>12.7</td><td>46.8</td><td>29.7</td><td>41.1</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="font-size:13px;color:var(--text-3)">Neutral θ = 0.25 and elevated θ = 0.40, with everything else shared. False alarms are a share of all users. Never-switch and exposure are among at-risk users. Exposure is capped at 50 trials.</p>
+
+        <h3>What the model shows</h3>
+        <ul>
+          <li><b>The threshold is a trade-off, not just a delay.</b> With varied users (v3), raising θ cuts false alarms from 14.0% to 0.9%. But it roughly doubles exposure to the degraded AI (10.8 → 22.7 trials) and leaves 11.6% of at-risk users still relying on it at trial 100, against 0.5% with the neutral threshold. Raising θ swaps one kind of error for the other.</li>
+        <li><b>A group that never recalibrates appears without being programmed in.</b> No rule says some users never switch. Chance alone produces some of this, since 5.3% never switch even when all users are identical (v2). Variation between users roughly doubles it, to 11.6% (v3).</li>
+          <li><b>Gradual degradation makes recalibration worse.</b> When reliability declines over 20 trials instead of dropping at once (v4), the elevated-threshold never-switch rate rises to 19.1%. Early in the decline, each error says less about whether the AI has changed.</li>
+          <li><b>Extension: limited feedback multiplies the effect.</b> If users see only half of the outcomes, the elevated-threshold never-switch rate goes from 11.6% to 34.5%, and to 46.8% with gradual drift. In this model, hiding feedback works much like a lower learning rate: fewer updates, so slower drift towards the AI's true reliability. That is also why it lowers false alarms. The model can't tell "people see less" apart from "people learn more slowly", although a real experiment could.</li>
+        </ul>
+
+        <h3>What it doesn't show</h3>
+        <ul>
+          <li><b>That anthropomorphic framing raises θ.</b> That is the hypothesis built into the model, not a result of it. The model only shows what would follow if framing acted on the threshold rather than the learning rate.</li>
+          <li><b>Real magnitudes.</b> The α and θ values were picked to be plausible, not estimated from data. The percentages above show the direction and rough shape of the effects, not predictions for real users.</li>
+          <li><b>Consequences.</b> Exposure counts trials of continued reliance, not errors acted on or harm caused.</li>
+        </ul>
+        <p>The model makes one prediction that can be tested. After a silent degradation, social framing should change <i>when people stop relying on the AI</i> more than it changes <i>how quickly their trust ratings fall</i>. An experiment that measures trust ratings and reliance choices separately could support or refute that.</p>
+      </section>
+
       <section class="card prose" aria-labelledby="h-how">
         <h2 id="h-how">How the model works</h2>
         <p>Every user starts with the same trust <i>T</i><sub>0</sub>. After each trial the AI is either right (<i>O</i> = 1) or wrong (<i>O</i> = 0), with probability set by its current reliability, and trust moves a fraction α of the way towards the outcome:</p>
         <p class="eq">T<sub>t+1</sub> = T<sub>t</sub> + α (O<sub>t</sub> − T<sub>t</sub>)</p>
         <p>A user stops relying on the AI the first time their trust has fallen more than θ below where it started. Each user gets their own α and θ, drawn from normal distributions with the means and spreads you set (clipped to α ∈ [0.01, 0.99], θ ∈ [0.05, 0.99]).</p>
         <p>The two conditions differ <b>only in θ</b>. The model's hypothesis is that presenting an AI as warm or human-like doesn't stop people registering its errors (α is unchanged), but raises how much trust they need to lose before they act on it (θ is higher). The model doesn't simulate an anthropomorphic interface. The higher threshold stands in for one proposed mechanism.</p>
-        <p><b>Outcome measures.</b> Switching is possible from the first trial, so some users give up on an AI that is still reliable. These are <i>false alarms</i>. Everyone else is <i>at risk</i> when degradation starts. For them, <i>switching delay</i> is how many trials after trial 50 they switch, and <i>exposure</i> counts post-drift trials of continued reliance. Exposure stops at trial 100, so for users who never switch it is a lower bound.</p>
+        <p><b>Outcome measures.</b> Switching is possible from the first trial, so some users give up on an AI that is still reliable. These are <i>false alarms</i>. Everyone else is <i>at risk</i> when degradation starts. For them, <i>switching delay</i> is how many trials after trial 50 they switch, and <i>exposure</i> counts post-drift trials of continued reliance. Within each trial, a user relies on the AI, sees the outcome, updates their trust and only then decides whether to switch. The trial on which they switch therefore counts as exposure, so for users who switch, exposure is the switching delay plus one. Exposure stops at trial 100, so for users who never switch it is a lower bound.</p>
         <div class="callout">
           <p><b>Extension: feedback visibility.</b> This isn't in the original model. Each outcome is seen with probability <i>v</i>. If it isn't seen, trust doesn't change, but the user is still relying on the AI, so those trials still count as exposure. At <i>v</i> = 1 this is the original model. It's a simple stand-in for settings where users can't check most of the AI's answers.</p>
         </div>
         <p><b>What this is and isn't.</b> It is a conceptual model, checked against qualitative patterns from the trust and automation-bias literature. It is not fitted to any dataset or validated against individual human behaviour, and exposure counts trials of reliance, not harm.</p>
-        <p><b>Relation to the notebook.</b> This page reimplements the notebook's model in JavaScript with a different random number generator, so individual runs won't match the notebook's numbers digit for digit. A script in the repo (<code>validation/compare.py</code>) checks that the two implementations agree on every outcome measure across 5,000 simulated users per condition.</p>
+        <p><b>Relation to the notebook.</b> This page reimplements the notebook's model in JavaScript with a different random number generator, so individual runs won't match the notebook's numbers digit for digit. A script in the repo (<code>validation/compare.py</code>) checks this in three ways. A Python version of the model reproduces the notebook's results exactly. Given the same sequence of outcomes, the JavaScript and Python models give identical results for each of 5,000+ users, including the edge cases (switching on the last trial before the drift or the first trial after it, trust loss exactly equal to θ, and errors the user doesn't see). Across 5,000 users per condition, the two versions also agree on every outcome measure.</p>
       </section>
     </main>
   </div>

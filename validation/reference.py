@@ -21,28 +21,46 @@ def reliability(t, p_high, p_low, drift_type, drift_window):
     return p_high - progress * (p_high - p_low)
 
 
+def simulate_agent(alpha, theta, env, draw):
+    """One agent. draw(t, p) returns (outcome, seen) for trial t at reliability p.
+
+    Timing within a trial: rely on the AI, see (or miss) the outcome, update
+    trust, then decide whether to switch. The switch trial itself counts as
+    exposure (the agent relied on the AI during it), so for switchers
+    exposure = delay + 1.
+    """
+    trust = env['initial_trust']
+    switch_trial = None
+    exposure = 0
+    for t in range(T):
+        outcome, seen = draw(t, reliability(t, env['p_high'], env['p_low'],
+                                            env['drift_type'], env['drift_window']))
+        if seen:
+            trust = trust + alpha * (outcome - trust)
+        if t >= T_DRIFT and switch_trial is None:
+            exposure += 1
+        if switch_trial is None and (env['initial_trust'] - trust) > theta:
+            switch_trial = t
+    return switch_trial, exposure
+
+
 def run_condition(n_agents, alpha_mean, alpha_sd, theta_mean, theta_sd,
                   p_high=0.90, p_low=0.55, drift_type='abrupt', drift_window=20,
                   initial_trust=0.85, visibility=1.0):
+    env = dict(p_high=p_high, p_low=p_low, drift_type=drift_type,
+               drift_window=drift_window, initial_trust=initial_trust)
     alphas = np.random.normal(alpha_mean, alpha_sd, n_agents).clip(0.01, 0.99)
     thetas = np.random.normal(theta_mean, theta_sd, n_agents).clip(0.05, 0.99)
+
+    def draw(t, p):
+        outcome = np.random.binomial(1, p)
+        seen = visibility >= 1 or np.random.random() < visibility
+        return outcome, seen
+
     switch_trial = [None] * n_agents
     exposure = np.zeros(n_agents)
-
     for i in range(n_agents):
-        trust = initial_trust
-        switched = False
-        for t in range(T):
-            p = reliability(t, p_high, p_low, drift_type, drift_window)
-            outcome = np.random.binomial(1, p)
-            seen = visibility >= 1 or np.random.random() < visibility
-            if seen:
-                trust = trust + alphas[i] * (outcome - trust)
-            if t >= T_DRIFT and not switched:
-                exposure[i] += 1
-            if not switched and (initial_trust - trust) > thetas[i]:
-                switch_trial[i] = t
-                switched = True
+        switch_trial[i], exposure[i] = simulate_agent(alphas[i], thetas[i], env, draw)
     return switch_trial, exposure
 
 

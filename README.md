@@ -31,7 +31,7 @@ The switching rule is active from the first trial, so a run of errors can make a
 2. the mean switching delay among those who switch
 3. the mean exposure to the degraded AI (post-drift trials of continued reliance) across all of them
 
-Exposure is censored at the end of the window, so for agents who never switch it is a lower bound.
+Within each trial an agent relies on the AI, sees the outcome, updates trust and only then decides whether to switch. The switch trial therefore counts as exposure, so for switchers exposure = switching delay + 1. Exposure is censored at the end of the window, so for agents who never switch it is a lower bound.
 
 ## What the model shows (four versions)
 
@@ -48,19 +48,23 @@ This is a **middle-range, conceptual model** doing **generative (pattern-oriente
 
 [`docs/`](docs/) holds a browser version of the model ([live here](https://jul-de.github.io/human-ai-reliance-abm/)). It runs the v4 model (heterogeneous agents, abrupt or gradual drift) for the neutral and elevated-threshold conditions side by side, with presets for v2–v4. Every parameter can be changed, and it reports the same outcome measures as the notebook.
 
-It adds one **extension that isn't in the notebook: feedback visibility**. Each outcome is seen with probability *v*. If it isn't seen, trust doesn't update, but the agent is still relying on the AI, so the trial still counts as exposure. At *v* = 1 the model is unchanged. With the v3 settings, hiding half the feedback raises the share of at-risk elevated-threshold agents who never switch from about 11% to about 35% (and from under 1% to about 6% for neutral agents), based on 5,000 agents per condition.
+It adds one **extension that isn't in the notebook: feedback visibility**. Each outcome is seen with probability *v*. If it isn't seen, trust doesn't update, but the agent is still relying on the AI, so the trial still counts as exposure. At *v* = 1 the model is unchanged. With the v3 settings, hiding half the feedback raises the share of at-risk elevated-threshold agents who never switch from about 11% to about 35% (and from under 1% to about 7% for neutral agents), based on 5,000 agents per condition. One caveat: in this model, hiding feedback works much like a lower learning rate (fewer updates), so the model alone can't tell "sees less" apart from "learns more slowly".
 
-The simulator is a JavaScript port with its own random number generator, so its runs don't match the notebook digit for digit. [`validation/compare.py`](validation/compare.py) checks two things:
+The simulator is a JavaScript port with its own random number generator, so its runs don't match the notebook digit for digit. [`validation/compare.py`](validation/compare.py) checks it in three ways:
 
-1. A Python reference model (`validation/reference.py`) reproduces the notebook's v4 results exactly.
-2. The JavaScript model agrees with that reference on false alarms, switch rate, switching delay and exposure (5,000 agents per condition, four configurations including the visibility extension).
+1. **Against the notebook:** a Python reference model (`validation/reference.py`) reproduces the notebook's v4 results exactly.
+2. **Agent by agent:** both implementations are run through the same per-agent function on 5,000+ fixed outcome streams, and must give identical switch trials, exposure, reliability values and summary measures. This includes edge cases on the outcome definitions: switching at trial 0, trial 49 (the last pre-drift trial, so a false alarm), trial 50 (delay 0, exposure 1) and trial 99; never switching (exposure 50); trust loss exactly equal to θ, which does not trigger a switch; and an unseen error, which causes no update but still counts as exposure.
+3. **Pooled:** the full simulations agree on false alarms, switch rate, switching delay and exposure (5,000 agents per condition, four configurations including the visibility extension).
+
+The simulator page also has a **Results** section: fixed results for each preset with 5,000 users per condition (reproduce with `node validation/results.mjs`), what they show, and what they don't.
 
 ## Running it
 
 ```bash
 pip install -r requirements.txt
 jupyter notebook PB440_Model_v1.ipynb     # the model
-python validation/compare.py             # simulator vs Python check (needs Node 18+)
+python validation/compare.py             # simulator vs Python checks (needs Node 18+)
+node validation/results.mjs              # results table on the simulator page
 ```
 
 To run the simulator locally, serve `docs/` (e.g. `python -m http.server -d docs`) and open http://localhost:8000.
@@ -71,7 +75,7 @@ To run the simulator locally, serve `docs/` (e.g. `python -m http.server -d docs
 - `PB440_Model_v1.html`: rendered version with all outputs and plots visible (readable without running).
 - `figures/`: the v2–v4 figures.
 - `docs/`: the interactive simulator (`index.html`, with the model in `model.mjs`).
-- `validation/`: the Python reference model and the simulator-vs-Python check.
+- `validation/`: the Python reference model, the simulator-vs-Python checks and the results-table script.
 
 The version originally submitted for the module is tagged [`v1-submitted`](https://github.com/jul-de/human-ai-reliance-abm/tree/v1-submitted). The current version separates pre-drift false alarms from post-drift recalibration, reports switching delay and exposure for all at-risk agents, and reframes α/θ and the anthropomorphism condition more precisely.
 

@@ -9,7 +9,13 @@
 // relying on the AI, so post-drift trials still count as exposure. visibility = 1 is the
 // original model.
 //
-// Statistical agreement with the Python reference is checked in validation/compare.py.
+// Timing within a trial: the agent relies on the AI, sees (or misses) the outcome, updates trust,
+// then decides whether to switch. A trial counts as exposure if it is post-drift and the agent
+// relied on the AI during it, so the trial on which an agent switches counts. For switchers,
+// exposure = switching delay + 1; agents who never switch have exposure 50 (censored).
+//
+// validation/compare.py checks this file against the Python reference, both exactly (per agent,
+// on fixed outcome streams) and statistically (pooled outcome measures).
 
 export const T = 100;        // trials per run
 export const T_DRIFT = 50;   // trial at which reliability starts to drop
@@ -48,31 +54,38 @@ export function reliability(t, env) {
   return env.pHigh - progress * (env.pHigh - env.pLow);
 }
 
+// One agent. draw(t, p) returns { outcome: 0|1, seen: boolean } for trial t at reliability p.
+export function simulateAgent(alpha, theta, env, draw, hist = null) {
+  let tr = env.initialTrust;
+  let switchTrial = null;
+  let exposure = 0;
+  for (let t = 0; t < T; t++) {
+    const { outcome, seen } = draw(t, reliability(t, env));
+    if (seen) tr = tr + alpha * (outcome - tr);
+    if (hist) hist[t] = tr;
+    if (t >= T_DRIFT && switchTrial === null) exposure += 1;  // relied on the AI this trial
+    if (switchTrial === null && (env.initialTrust - tr) > theta) switchTrial = t;  // stops from t + 1
+  }
+  return { switchTrial, exposure };
+}
+
 // One run of one condition. Returns per-agent results; trajectories only if keepTrust.
 export function runCondition(nAgents, env, agent, rng, keepTrust = false) {
   const switchTrial = new Array(nAgents).fill(null);
   const exposure = new Array(nAgents).fill(0);
   const trust = keepTrust ? [] : null;
-
+  const draw = (t, p) => {
+    const outcome = rng.uniform() < p ? 1 : 0;
+    const seen = env.visibility >= 1 || rng.uniform() < env.visibility;
+    return { outcome, seen };
+  };
   for (let i = 0; i < nAgents; i++) {
     const alpha = clip(rng.normal(agent.alphaMean, agent.alphaSd), 0.01, 0.99);
     const theta = clip(rng.normal(agent.thetaMean, agent.thetaSd), 0.05, 0.99);
-    let tr = env.initialTrust;
-    let switched = false;
     const hist = keepTrust ? new Float32Array(T) : null;
-
-    for (let t = 0; t < T; t++) {
-      const outcome = rng.uniform() < reliability(t, env) ? 1 : 0;
-      const seen = env.visibility >= 1 || rng.uniform() < env.visibility;
-      if (seen) tr = tr + alpha * (outcome - tr);
-      if (hist) hist[t] = tr;
-
-      if (t >= T_DRIFT && !switched) exposure[i] += 1;
-      if (!switched && (env.initialTrust - tr) > theta) {
-        switchTrial[i] = t;
-        switched = true;
-      }
-    }
+    const r = simulateAgent(alpha, theta, env, draw, hist);
+    switchTrial[i] = r.switchTrial;
+    exposure[i] = r.exposure;
     if (keepTrust) trust.push(hist);
   }
   return { switchTrial, exposure, trust };

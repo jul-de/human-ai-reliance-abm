@@ -86,6 +86,6 @@ Cited in this README and in the notebook.
 - Peters, T. M., & Scharlau, I. (2025). Interacting with fallible AI: Is distrust helpful when receiving AI misclassifications? *Frontiers in Psychology, 16*, 1574809. https://doi.org/10.3389/fpsyg.2025.1574809
 - Waytz, A., Heafner, J., & Epley, N. (2014). The mind in the machine: Anthropomorphism increases trust in an autonomous vehicle. *Journal of Experimental Social Psychology, 52*, 113–117. https://doi.org/10.1016/j.jesp.2014.01.005
 
-## A note on AI assistance
+## Tools
 
-I used AI tools (Claude) to help translate the architecture into code and for debugging. The theoretical design (the SDT-inspired separation of learning rate and switching threshold, the threshold-shift operationalisation of social framing, the scope and predictions) and the interpretation are mine, and I can justify every parameter and modelling choice. The revision after submission (separating false alarms, the revised outcome measures and the reframing) was also made with Claude's help, following an external review.
+Built in Python and NumPy (model) and JavaScript (interactive simulator), with Claude Code as a coding assistant.
